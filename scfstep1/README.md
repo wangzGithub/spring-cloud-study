@@ -182,7 +182,7 @@ spring:
 @EnableEurekaClient
 ```
 ##### 新建controller类进行测试
---
+---
 ### 增加ribbon负载均衡
 #### 新建模块，service-ribbon,在pom中增加以下代码，并在根pom中加入引用
 ```
@@ -283,5 +283,7 @@ public class TestController {
 ##### 运行service-ribbon实例
 ##### 访问http://localhost:8764/hello?name=123 可以看到下列信息交替出现：
 > Hello, the name you press is: lei, this message from :eureka-client, port is: 8762
+---
 > Hello, the name you press is: lei, this message from :eureka-client, port is: 8763
+---
 > 即表示当前已经通过调用service-ribbon的restTemplate.getForObject()方法实现了负载均衡，访问了不同端口的实例
