@@ -287,3 +287,97 @@ public class TestController {
 > Hello, the name you press is: lei, this message from :eureka-client, port is: 8763
 ---
 > 即表示当前已经通过调用service-ribbon的restTemplate.getForObject()方法实现了负载均衡，访问了不同端口的实例
+---
+### 增加feign功能，RestTemplate+Ribbon和Feign可以实现同样功能
+#### 简介
+> Feign是一个声明式伪Http客户端，它使写Http客户端更加简单，使用Feign，只需要创建一个接口并注解。
+> 具有可插拔的注解特性，可使用Feign注解和JAX-RS注解。
+> Feign 支持可插拔的编码器和解码器。
+> Feign 默认集成了Ribbon，与Eureka结合默认实现了负载均衡的效果
+#### 创建feign模块service-feign,并在pom中引入依赖
+```
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.wangz</groupId>
+    <artifactId>service-feign</artifactId>
+    <version>0.0.1-SNAPSHOT</version>
+    <packaging>jar</packaging>
+
+    <name>service-feign</name>
+    <description>Demo project for Spring Boot</description>
+
+    <parent>
+        <groupId>com.wangz</groupId>
+        <artifactId>sc-f-step1</artifactId>
+        <version>0.0.1-SNAPSHOT</version>
+    </parent>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-netflix-eureka-client</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-openfeign</artifactId>
+        </dependency>
+    </dependencies>
+
+</project>
+```
+##### 在根pom中引入service-feign
+#### 在application.yml中增加配置
+```
+server:
+    port: 8765
+spring:
+    application:
+        name: service-feign
+eureka:
+    client:
+        service-url:
+            defaultZone: http://localhost:8761/eureka/
+```
+#### 在程序的启动类增加配置开启Feign功能
+```java
+@SpringBootApplication
+@EnableEurekaClient
+@EnableDiscoveryClient
+@EnableFeignClients
+public class ServiceFeignApplication {
+    public static void main(String[] args) {
+        SpringApplication.run(ServiceFeignApplication.class, args);
+    }
+}
+```
+#### 定义一个Feign接口，通过@FeignClient(service name) 来指定调用的服务
+```java
+@FeignClient(value="service-client")
+public interface SchedualService {
+    @RequestMapping(value="/hello", method=RequestMethod.GET)
+    String sayHelloFromClientOne(@RequestParam(value = "name") String name);
+}
+```
+#### 定义一个Controller，对外暴露一个sayHello接口，通过上一步定义的FeignService来消费服务
+```java
+@RestController
+public class HelloController {
+    @Autowired
+    private SchedualService schedualService;
+    
+    @GetMapping(value="hello")
+    public String sayHello(@RequestParam String name) {
+        return schedualService.sayHelloFromClientOne(name);
+    }
+}
+```
+#### 依次启动eureka-service,以不同端口号启动两次eureka-client,再启动service-feign
+> 多次访问http://localhost:8765/hello?name=123
+>> 可以看到返回的端口号发生变化，实现了负载均衡的效果
