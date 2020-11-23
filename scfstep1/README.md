@@ -381,3 +381,60 @@ public class HelloController {
 #### 依次启动eureka-service,以不同端口号启动两次eureka-client,再启动service-feign
 > 多次访问http://localhost:8765/hello?name=123
 >> 可以看到返回的端口号发生变化，实现了负载均衡的效果
+### 为服务增加断路器功能
+> Hystrix断路器会在调用服务发现服务不可用后，fallback返回一个固定值避免连锁故障，更好的控制容器的线程阻塞
+#### 在ribbon中增加断路器
+##### 在配置文件中引入断路器Hystrix
+```
+<dependency>
+    <groupId>org.springframework.cloud<groupId>
+    <artifactId>spring-cloud-starter-netflix-hystrix</artifactId>
+</dependency>
+```
+##### 在启动类中开启Hystrix
+```
+@EnableHystrix
+```
+##### 改造方法，在方法上加入@HystrixCommand注解
+> @HystrixCommand方法创建了熔断器功能，并指定了fallback方法，在发生错误时调用此方法
+```
+@HystrixCommand(fallbackMethod = "errorReturn")
+public String testService(String name) {
+    return restTemplate.getForObject("http://EUREKA-CLIENT/hello?name=" + name, String.class);
+}
+
+public String errorReturn(String name) {
+        return "sorry, " + name + " ,there is a error message!";
+    }
+```
+##### 启动服务测试
+> 依次启动eureka-server, eureka-client, service-ribbon，访问http://localhost:8764/hello?name=a,返回正常结果，
+关闭eureka-client后再次访问返回"sorry, a ,there is a error message!"表示断路器正常工作
+#### 在feign中开启断路器
+> feign 自带Hystrix但默认关闭，需要在配置文件中手动开启断路器功能
+```
+feign:
+    hystrix:
+        enabled: true
+```
+##### 在service接口的注释中加入fallback的指定类，此类必须实现service接口并注入到IOC容器
+```java
+@FeignClient(value = "eureka-client", fallback = SchedualServiceHystrix.class)
+public interface SchedualService {
+
+    @RequestMapping(value = "/hello", method = RequestMethod.GET)
+    String sayHelloFromClientOne(@RequestParam(value = "name") String name);
+}
+```
+```java
+@Component
+public class SchedualServiceHystrix implements SchedualService {
+    @Override
+    public String sayHelloFromClientOne(String name) {
+        return "sorry, " + name + ", this client has error, the message send by feign hystrix";
+    }
+}
+```
+##### 启动服务测试
+> 依次启动eureka-server, eureka-cient, service-feign，访问http://localhost:8765/hello?name=a，返回正常结果，
+关闭eureka-client后再次访问返回"sorry, a, this client has error, the message send by feign hystrix"表示断路器正常工作
