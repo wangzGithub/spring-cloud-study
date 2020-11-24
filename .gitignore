@@ -1,1 +1,4 @@
 .idea/
+scfstep1/service-zuul/.mvn/wrapper/maven-wrapper.properties
+scfstep1/service-zuul/.mvn/wrapper/maven-wrapper.jar
+scfstep1/service-zuul/.mvn/wrapper/MavenWrapperDownloader.java
